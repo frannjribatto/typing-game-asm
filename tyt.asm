@@ -31,14 +31,17 @@ public teclado
 
 
 teclado proc
-    mov ax, @data
-    mov ds, ax
+
+    mov ax,1
+    int 10h
+
     xor si, si
 
-    ;mov al, cl
+    mov al, cl
     lea si, puntaje
     add si, 2
     call reg2ascii
+
     lea si, palabramain
 limpiar:
     cmp byte ptr[si], 24h
@@ -50,7 +53,18 @@ limpiar:
     jmp limpiar
 
 precargo:
- xor si,si  
+ xor si,si 
+    lea si, lectura
+limpiar1:
+    cmp byte ptr[si], 24h
+    je precargo2
+    cmp byte ptr[si], 0dh
+    je precargo2
+    mov byte ptr[si], 24h
+    inc si
+    jmp limpiar1
+precargo2:
+ xor si,si
 cargo:
     cmp byte ptr[bx],24h
     je inicioprograma
@@ -130,19 +144,24 @@ llamada:
 
     jmp timer
 backspace:              ; Borra la última tecla, y devuelve el puntero a la tecla anterior
-;Borro, imprimo un espacio y lo borro. De esta manera piso el espacio.
-    dec bx
+                        ;Los servicios 2 borran en pantalla, luego reemplazo con 24h el [bx] a borrar
     mov ah, 2
     mov dl, 08h
     int 21h
     mov ah, 2
     mov dl, 20h
     int 21h
-    mov [bx], dl
+    mov dl, 24h
     mov ah, 2
     mov dl, 08h
     int 21h
-    jmp tickref 
+    mov dl, 24h
+    mov [bx], dl
+    cmp bx, 0
+    je timer
+    dec bx
+    mov [bx], dl
+    jmp timer 
 
 imprimosegfin: 
     mov ah,9
@@ -153,12 +172,21 @@ imprimosegfin:
     int 21h
     jmp fallo
         
-finteclado: ;Imprimo lo que tengo en palabra        
-    mov ah, lectura
-    mov bh , palabramain
-    cmp ah, bh 
+finteclado: ;Imprimo lo que tengo en palabra
+    mov si, 0
+comparo:
+    mov ah, lectura[si]
+    mov bh , palabramain[si]
+    cmp lectura[si],24h
+    je verifico 
+    cmp ah, bh
+    jne fallo
+    inc si 
+    jmp comparo
+verifico:
+    cmp ah, bh
     je acierto
-    jmp fallo
+    jmp fallo    
 
 acierto:
     mov ah, 9

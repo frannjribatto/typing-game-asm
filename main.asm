@@ -6,11 +6,12 @@
     archivo db "datos.txt", "$"
     filehandler dw 00h,00h
     readchar db 20h
+    semilla dw 0
     palabra db 255 dup ("$"), 24h
     cantSlash db 0
-    randomant dw 0
-    random db 1
+    random db 0
     score db 000
+    verifico dw 0
     ;MENSAJES
     filerror db "Archivo no existe o error de apertura", 0dh, 0ah, '$'
     charactererror db "Error de lectura de caracter", 0dh, 0ah, '$'
@@ -25,6 +26,20 @@ main proc
     mov ax,@data
     mov ds,ax
 
+    mov ax,1
+    int 10h
+
+    mov ah, 2Ch
+    int 21h
+    add dh, ch  ; Combina CH y DH para obtener un valor más único
+    mov semilla, dx
+
+    ; Llama a la interrupción personalizada y actualiza la semilla
+    mov ax, semilla
+    int 81h
+    mov semilla, ax  ; al tiene un valor
+    mov random, dl
+
     jmp inicio
 
 reset:                      ;reseteo todo  
@@ -32,18 +47,25 @@ reset:                      ;reseteo todo
     lea di, palabra
     call reseteo            ;limpia la variable palabra
     mov cantSlash,0
-    mov word ptr [filehandler], 0
-    mov readchar, 20h
+
+ mov ah, 2Ch
+    int 21h
+    add dh, ch              ; Combina CH y DH para obtener un valor más único
+    mov semilla, dx
+
+    ; Llama a la interrupción personalizada y actualiza la semilla
+    mov ax, semilla
+    int 81h
+    mov semilla, ax         ; al tiene un valor
+    mov random, dl
 
     xor ax,ax
     xor bx,bx 
     xor cx,cx
     xor dx,dx
-
-    add random, 1
-
+    mov word ptr [filehandler], 0
+    mov readchar, 20h    
     
-
 inicio: 
     call Clearscreen        ;Función de limpiado de pantalla
     lea si,palabra
@@ -51,7 +73,7 @@ inicio:
     mov ah,3dH              ; abrir el archivo
     mov al,0                ;abrirlo en modo lectura
     int 21H  
-    jc openerr               ;si hay carry significa que abrio mal
+    ;jc openerr               ;si hay carry significa que abrio mal
     mov word ptr[filehandler], ax  ;almacenar el descriptor de archivo
 
     mov cx, 0
@@ -113,17 +135,20 @@ cantidadSlash:              ;esta funcion es la que entra cuando detecta un / pa
     add cantSlash, 1        ;aumenta la cant de / en 1 
     jmp char
  
-eof:  
+eof:
+    mov ah, 3Eh
+    int 21h  
     mov cl, score           ;movemos el score guardado en cl
     lea bx, palabra         ;movemos el offset de palabra
-
-    call teclado            ;llamamos a teclado donde se haran todas las comparaciones 
+    call teclado            ;llamamos a teclado donde se haran todas las comparaciones
+     mov ax,1
+    int 10h
  
-
+ 
     mov bl, score           ;move a bl el score que teniamos
     add bl, cl              ;le agregamos el score nuevo
     mov score, bl           ;lo guardamos en la variable
-    cmp cl,1               ;ve si cl tiene un 1 o no porque CL trae un 1 de la funcion si la persona escribio bien la palabra
+    cmp cl, 1               ;ve si cl tiene un 1 o no porque CL trae un 1 de la funcion si la persona escribio bien la palabra
     je continuar 
                             ;si Cl no es un 1, imprime los carteles para saber si queres seguir jugando o no
     mov score, 0
@@ -147,6 +172,8 @@ continuar:
     jmp reset
 
 finprograma:                ;fin del programa
+    mov ax,2
+    int 10h
     mov ah,4ch 
     int 21H
 main endp
@@ -169,7 +196,8 @@ proc Clearscreen           ;no se limpia xd
     pop cx
     pop es
     pop ax
-    ret 
+    ret
+
 Clearscreen endp
 
 end
